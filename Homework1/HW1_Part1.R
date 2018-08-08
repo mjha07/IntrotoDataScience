@@ -1,0 +1,167 @@
+# Question 1: New York Times Data
+  
+nyt1 <- read.csv("/Users/mayankajha/Documents/Spring-2018/INST_737/nyt1.csv")
+nyt1 <- na.omit(nyt1)
+str(nyt1)
+summary(nyt1$Age)
+dim(nyt1)
+
+## Part 1: Create a new variable, age_group, that categorizes users as “<18”, ”18-24”, ”25-34”, ”35-44”, ”45-54”, “55-64” and “65+”. Initially I ran if, else f and else loop inside a for loop for the number of rows in the dataframe but then later saw the cut function and used that 
+
+breaks <- c(0, 18, 25, 35, 45, 55, 65, 110) #Summary commands tells us that 108 is the highest age
+labels <- c('<18', '18-24', '25-34', '35-44', '45-54', '55-64', '64+')
+nyt1$Age_Group <- cut(nyt1$Age, breaks=breaks, labels=labels, right = FALSE, ordered_result = TRUE)
+summary(nyt1$Age_Group) # to ensure there are no null values
+
+
+## Part 2.1: For a single day plot the distributions of number impressions and click-through-rate (CTR=# clicks/# impressions), for these 6 age categories.
+nyt1$ctr <- nyt1$Clicks/nyt1$Impressions
+summary(nyt1$ctr)
+nytctr<- nyt1$ctr[is.na(nyt1$ctr)] <- 0 # Replacing NA values with 0 
+summary(nyt1$ctr)
+
+library(ggplot2)
+impressions_age_group=ggplot(nyt1, aes(x=Impressions, colour=Age_Group)) + geom_density() + ggtitle("Number of Impressions by Age Group")
+plot(impressions_age_group)
+ctr_age_group=ggplot(nyt1, aes(x=ctr, colour=Age_Group)) + geom_density() + ggtitle("Number of Click-Through-Rate by Age Group")
+plot(ctr_age_group)
+
+
+## Part 2.2: Define a new variable to segment or categorize users based on their click behavior 
+
+table1 <- prop.table(table(nyt1$Clicks))*100 #gives percentage distribution of clicks values
+table1
+### Creating a variable called have_clicked where if Clicks >=1 the value will be 1 else 0
+nyt1$have_clicked <- ifelse(nyt1$Clicks>=1, 1, 0) 
+table_have_clicked <- prop.table(table(as.factor(nyt1$have_clicked)))
+table_have_clicked
+
+
+## Part 2.3: Explore the data and make visual and quantitative comparisons across user segments/ demographics (<18 year old male vs < 18 year old females or logged-in vs not, for example).
+
+table1 <- table(nyt1$have_clicked, nyt1$Gender)
+clicked_by_gender = barplot(table1, beside=T, legend.text=c("Not Clicked", "Clicked") , main="Clicked Behavior Categorized by Gender", xlab="Gender", ylab="Have Clicked", col=c(2,4))
+
+###Relative frequency of Clicks by age Group
+library("plyr")
+Clicked <- prop.table(table(nyt1$Age_Group, nyt1$have_clicked==1))  
+Clicked <- data.frame(Clicked)
+Clicked
+Clicked <- subset(Clicked, Var2==TRUE) 
+Clicked$Var2 <- NULL
+Clicked<- rename(Clicked,c("Var1" = "AgeGroup"))
+Clicked
+
+library(data.table)
+s <- sum(Clicked$Freq)
+head(s)
+Clicked$RelFrq <- Clicked$Freq/s    #calculate relative frequency
+labl <- data.table(Clicked)[, per := sprintf("%.1f%%", RelFrq*100), by = Var1]
+head(labl) 
+
+have_clicked_age_group=ggplot(Clicked, aes(x=Var1, y=RelFrq, fill=Var1)) + geom_bar(stat="identity") + labs(title="At least 1 Clicks by Age Group - Day 1", x= "Age Groups", y= "Relative Frequency of Clicks")+ guides(fill=FALSE)+ geom_text(data = labl, aes(x = Var1, y = RelFrq, label = per), vjust= -0.5)
+plot(have_clicked_age_group)
+
+#Now let's check average Impressions by gender and age group
+means <- with(nyt1, aggregate(x=list(Y=Impressions),by=list(A=Age_Group, B=Gender),mean)) 
+with(means, interaction.plot(x.factor=A, trace.factor=B, response=Y, type='b', main = "Impressions by gender and age group, day 10", xlab = "Age groups", ylab= "Average Impressions"))
+
+#This shows an interesting result - generally, the average number of impressions decreases as you move up in age group. Women, ‘0’, seem to have a higher average of impressions with every age group.
+
+#Now let’s check out if there are differences with gender and age group with clicks…
+
+means1 <- with(nyt1, aggregate(x=list(Y=Clicks), by=list(A=Age_Group, B=Gender),mean))
+with(means1, interaction.plot(x.factor=A, trace.factor=B, response=Y, type='b',main = "Clicks by gender and age group, day 10", xlab = "Age groups", ylab= "Average Clicks"))
+
+#Part 3: Create & visualize metrics/measurements/statistics that summarize the data. 
+
+#We will calculate average Impressions of page across Age Group
+nyt1$mean_Imp<-nyt1$Impressions
+mean_Impression_AgeGroup <- ddply(nyt1, "Age_Group", summarise, mean_Imp.mean=mean(mean_Imp))
+mean_Impression_AgeGroup
+
+#Average Click Through Rate across Age Groups
+mean_ctr <- ddply(nyt1, "Age_Group", summarise, ctr.mean=mean(ctr))
+mean_ctr
+
+#Average Impressions across Gender
+nyt1$AvgeImp<-nyt1$Impressions
+mean_Imp_Gender <- ddply(nyt1, "Gender", summarise, ImpressionByGender.mean=mean(AvgeImp))
+mean_Imp_Gender
+
+#Now we will extend our analysis across one week.
+
+nyt1_new <- read.csv("/Users/mayankajha/Documents/Spring-2018/INST_737/nyt1.csv")
+nyt2 <- read.csv("/Users/mayankajha/Documents/Spring-2018/INST_737/nyt2.csv")
+nyt3 <- read.csv("/Users/mayankajha/Documents/Spring-2018/INST_737/nyt3.csv")
+nyt4 <- read.csv("/Users/mayankajha/Documents/Spring-2018/INST_737/nyt4.csv")
+nyt5 <- read.csv("/Users/mayankajha/Documents/Spring-2018/INST_737/nyt5.csv")
+nyt6 <- read.csv("/Users/mayankajha/Documents/Spring-2018/INST_737/nyt6.csv")
+nyt7 <- read.csv("/Users/mayankajha/Documents/Spring-2018/INST_737/nyt7.csv")
+
+nyt1_new$day <- "Day 1"
+nyt2$day <- "Day 2"
+nyt3$day <- "Day 3"
+nyt4$day <- "Day 4"
+nyt5$day <- "Day 5"
+nyt6$day <- "Day 6"
+nyt7$day <- "Day 7"
+
+nyt <- rbind(nyt1_new, nyt2, nyt3, nyt4, nyt5, nyt6, nyt7)
+#View(nyt)
+
+levels(nyt$day) <- list('day1' = 'day1',
+                        'day2' = 'day2',
+                        'day3' = 'day3',
+                        'day4' = 'day4',
+                        'day5' = 'day5',
+                        'day6' = 'day6',
+                        'day7' = 'day7')
+
+#encoding Female as 0 and Male as 1
+nyt$Gender <- ifelse(nyt$Gender == 0, 'Female','Male') 
+
+#calculating click through rate
+nyt$CTR <- ifelse(nyt$Impressions != 0, nyt$Clicks/nyt$Impressions,NA) 
+
+#Comparing mean number of clicks/person for both genders across 7 days
+clicks.plot2 <- aggregate(nyt$Clicks, by = list(nyt$day, nyt$Gender), FUN = mean, na.rm = TRUE)
+
+#From table  we can observe below points: 
+#1. Average number of clicks/ person does not vary throug day1 to day7 for either male or female. 
+#2. Female has higher average number of clicks/ person when compared to male
+clicks.plot2
+
+#Comparing mean CTR for both genders across 7 days
+ctr.plot3 <-aggregate(nyt$CTR,
+                      by = list(nyt$day, nyt$Gender),
+                      FUN = mean, na.rm = TRUE)
+
+#From table  we can observe below points:
+#1. Average CTR/ person does not vary throug day1 to day7 for either male or female.  
+#2. Female has higher average number of CTR/ person when compared to male 
+ctr.plot3
+
+#Plotting distribution of CTR for Males and Females for Day1 to Day7
+#From plot we can observe that clicks remain amost same for all days except for day 5 and day 6. 
+#On day 5 it is lower than normal and on day 6 it s above normal level. 
+#The behavior is same for both male and female
+
+agg <- ggplot(nyt, aes(day, Clicks))+ geom_bar(stat = "identity") + facet_grid(.~ Gender)
+plot(agg)
+agg1 <- ggplot(nyt, aes(day, CTR))+ geom_bar(stat = "identity") + facet_grid(.~ Gender)
+plot(agg1)
+
+#Part 4: Describe and interpret any patterns you find.
+
+#From plot we observed that clicks remain almost same for all days except for day 5 and day 6. On day 5 it is lower than normal and on day 6 it s above normal level. 
+#In the above data, we also observed that people from the age group less than 18 years are most likely (and most frequently) to click than any other age group.
+# It appears that females are most likely to click than male. 
+#We see no anomalies in the given data. Average number of Clicks and CTR/ person does not vary throug day1 to day7 for either male or female. However, female has higher average number of Clicks and CTR/ person when compared to male. 
+
+
+
+
+
+
+
